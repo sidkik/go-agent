@@ -4,22 +4,23 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"math/rand"
 	"net/http"
 	"os"
 	"sync"
 	"time"
 
-	"go.opentelemetry.io/otel/api/global"
-	"go.opentelemetry.io/otel/sdk/trace"
-
 	nrotel "github.com/newrelic/opentelemetry-exporter-go/newrelic"
+	"go.opentelemetry.io/otel"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 
+	"github.com/newrelic/go-agent/v4/internal/logger"
 	"github.com/newrelic/go-agent/v4/newrelic"
+	"github.com/newrelic/newrelic-telemetry-sdk-go/telemetry"
 )
 
 func index(w http.ResponseWriter, r *http.Request) {
@@ -253,14 +254,43 @@ func browser(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	// Set up OTel Tracer
-	initTracer()
 
+	// Create a New Relic OpenTelemetry Exporter
+	apiKey, ok := os.LookupEnv("NEW_RELIC_API_KEY")
+	if !ok {
+		fmt.Println("Missing NEW_RELIC_API_KEY required for New Relic OpenTelemetry Exporter")
+		os.Exit(1)
+	}
+
+	exporter, err := nrotel.NewExporter(
+		"New Relic OpenTelemetry Shim Service",
+		apiKey,
+		telemetry.ConfigBasicErrorLogger(os.Stderr),
+		telemetry.ConfigBasicDebugLogger(os.Stderr),
+		telemetry.ConfigBasicAuditLogger(os.Stderr),
+	)
+	if err != nil {
+		fmt.Printf("Failed to instantiate New Relic OpenTelemetry exporter: %v\n", err)
+		os.Exit(1)
+	}
+
+	ctx := context.Background()
+	defer func() { _ = exporter.Shutdown(ctx) }()
+
+	// Create a tracer provider
+	bsp := sdktrace.NewBatchSpanProcessor(exporter)
+	tp := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(bsp))
+	defer func() { _ = tp.Shutdown(ctx) }()
+
+	otel.SetTracerProvider(tp)
+
+	// Proceed as if using the New Relic Go Agent
 	app, err := newrelic.NewApplication(
 		newrelic.ConfigAppName("Example App"),
 		newrelic.ConfigLicense(os.Getenv("NEW_RELIC_LICENSE_KEY")),
 		func(cfg *newrelic.Config) {
-			cfg.OpenTelemetry.Tracer = global.Tracer("MyConfiguredName")
+			cfg.OpenTelemetry.Tracer = otel.Tracer("MyConfiguredName")
+			cfg.Logger = logger.New(os.Stdout, true)
 		},
 	)
 	if nil != err {
@@ -297,16 +327,4 @@ func main() {
 	})
 
 	http.ListenAndServe(":8000", nil)
-}
-
-func initTracer() {
-	exporter, err := nrotel.NewExporter("My Service", os.Getenv("NEW_RELIC_API_KEY"))
-	if err != nil {
-		log.Fatal(err)
-	}
-	tp, err := trace.NewProvider(trace.WithSyncer(exporter))
-	if err != nil {
-		log.Fatal(err)
-	}
-	global.SetTraceProvider(tp)
 }

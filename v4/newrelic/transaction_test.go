@@ -10,11 +10,9 @@ import (
 	"testing"
 
 	"github.com/newrelic/go-agent/v4/internal"
-	"go.opentelemetry.io/otel/api/kv"
-	"go.opentelemetry.io/otel/api/propagation"
-	"go.opentelemetry.io/otel/api/trace"
-	"go.opentelemetry.io/otel/api/trace/testtrace"
-	"google.golang.org/grpc/codes"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/label"
+	"go.opentelemetry.io/otel/trace"
 )
 
 func getTraceID(s trace.Span) string {
@@ -210,7 +208,7 @@ func TestAcceptDistributedTraceHeadersSwitchRoot(t *testing.T) {
 func TestPropagateTracestate(t *testing.T) {
 	remoteTraceID := "aaaa0000000000000000000000000001"
 	remoteSpanID := "bbbb000000000002"
-	remoteTracestate := "123@nr=0-0-123-456-1234567890123456-6543210987654321-0-0.24689-0"
+	remoteTracestate := "a23@nr=0-0-123-456-1234567890123456-6543210987654321-0-0.24689-0"
 
 	app := newTestApp(t)
 	txn := app.StartTransaction("transaction")
@@ -237,41 +235,7 @@ func TestPropagateTracestate(t *testing.T) {
 		t.Errorf("expected traceparent '%s', got '%s'", expectedTraceparent, traceparent)
 	}
 	if tracestate != remoteTracestate {
-		t.Errorf("expected traceparent '%s', got '%s'", remoteTracestate, tracestate)
-	}
-}
-
-func TestInsertDistributedTraceHeadersB3(t *testing.T) {
-	app, err := NewApplication(func(cfg *Config) {
-		tp := testtrace.NewProvider()
-		cfg.OpenTelemetry.Tracer = tp.Tracer("go-agent-test")
-		cfg.OpenTelemetry.Propagators = propagation.New(
-			propagation.WithInjectors(trace.B3{}),
-			propagation.WithExtractors(trace.B3{}))
-	})
-	if err != nil {
-		t.Fatal("unable to create app:", err)
-	}
-	txn := app.StartTransaction("transaction")
-	seg1 := txn.StartSegment("seg1")
-
-	hdrs := http.Header{}
-	txn.InsertDistributedTraceHeaders(hdrs)
-
-	seg1.End()
-	txn.End()
-
-	traceID := getTraceID(txn.rootSpan.Span)
-	seg1ID := getSpanID(seg1.StartTime.Span)
-
-	b3TraceID := hdrs.Get("X-B3-Traceid")
-	b3SpanID := hdrs.Get("X-B3-Spanid")
-
-	if b3TraceID != traceID {
-		t.Errorf("expected X-B3-Traceid '%s', got '%s'", traceID, b3TraceID)
-	}
-	if b3SpanID != seg1ID {
-		t.Errorf("expected X-B3-Spanid '%s', got '%s'", seg1ID, b3SpanID)
+		t.Errorf("expected tracestate '%s', got '%s'", remoteTracestate, tracestate)
 	}
 }
 
@@ -428,7 +392,7 @@ func TestAddTxnRequestAttributes(t *testing.T) {
 	for _, test := range testcases {
 		t.Run(test.name, func(t *testing.T) {
 			attrs := make(map[string]interface{})
-			addTxnHTTPRequestAttributes(test.req, func(keyValues ...kv.KeyValue) {
+			addTxnHTTPRequestAttributes(test.req, func(keyValues ...label.KeyValue) {
 				for _, keyValue := range keyValues {
 					attrs[string(keyValue.Key)] = keyValue.Value.AsInterface()
 				}
@@ -469,7 +433,6 @@ func TestAddTxnStatusCodeAttributes(t *testing.T) {
 			code: 200,
 			attrs: map[string]interface{}{
 				"http.status_code": int64(200),
-				"http.status_text": "OK",
 			},
 		},
 		{
@@ -477,7 +440,6 @@ func TestAddTxnStatusCodeAttributes(t *testing.T) {
 			code: 500,
 			attrs: map[string]interface{}{
 				"http.status_code": int64(500),
-				"http.status_text": "Internal Server Error",
 			},
 		},
 		{
@@ -492,7 +454,7 @@ func TestAddTxnStatusCodeAttributes(t *testing.T) {
 	for _, test := range testcases {
 		t.Run(test.name, func(t *testing.T) {
 			attrs := make(map[string]interface{})
-			addTxnStatusCodeAttributes(test.code, func(keyValues ...kv.KeyValue) {
+			addTxnStatusCodeAttributes(test.code, func(keyValues ...label.KeyValue) {
 				for _, keyValue := range keyValues {
 					attrs[string(keyValue.Key)] = keyValue.Value.AsInterface()
 				}
@@ -523,7 +485,7 @@ func TestSetTxnSpanStatus(t *testing.T) {
 		actStr = s
 	})
 
-	if expCode := codes.Code(13); actCode != expCode {
+	if expCode := codes.Code(1); actCode != expCode {
 		t.Errorf("Incorrect code recorded:\n\texpect=%d actual=%d",
 			expCode, actCode)
 	}

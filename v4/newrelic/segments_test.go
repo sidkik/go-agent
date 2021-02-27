@@ -11,10 +11,10 @@ import (
 	"testing"
 
 	"github.com/newrelic/go-agent/v4/internal"
-	"go.opentelemetry.io/otel/api/kv"
-	"go.opentelemetry.io/otel/api/trace"
-	"go.opentelemetry.io/otel/api/trace/testtrace"
-	"google.golang.org/grpc/codes"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/label"
+	"go.opentelemetry.io/otel/oteltest"
+	"go.opentelemetry.io/otel/trace"
 )
 
 func getSpanID(s trace.Span) string {
@@ -22,7 +22,7 @@ func getSpanID(s trace.Span) string {
 }
 
 func getParentID(s trace.Span) string {
-	return s.(*testtrace.Span).ParentSpanID().String()
+	return s.(*oteltest.Span).ParentSpanID().String()
 }
 
 type expectApp struct {
@@ -31,9 +31,9 @@ type expectApp struct {
 }
 
 func newTestApp(t *testing.T) expectApp {
-	sr := new(testtrace.StandardSpanRecorder)
+	sr := new(oteltest.StandardSpanRecorder)
 	app, err := NewApplication(func(cfg *Config) {
-		tr := testtrace.NewProvider(testtrace.WithSpanRecorder(sr)).Tracer("go-agent-test")
+		tr := oteltest.NewTracerProvider(oteltest.WithSpanRecorder(sr)).Tracer("go-agent-test")
 		cfg.OpenTelemetry.Tracer = tr
 	})
 	if err != nil {
@@ -1030,8 +1030,10 @@ func TestDatastoreSegmentAttributes(t *testing.T) {
 
 	for _, test := range testcases {
 		t.Run(test.name, func(t *testing.T) {
-			attrs := make(map[string]interface{})
-			test.seg.addRequiredAttributes(func(k string, v interface{}) {
+			attrs := make(map[string]label.Value)
+			test.seg.addRequiredAttributes(func(attributes ...label.KeyValue) {
+				k := string(attributes[0].Key)
+				v := attributes[0].Value
 				attrs[k] = v
 			})
 
@@ -1043,9 +1045,30 @@ func TestDatastoreSegmentAttributes(t *testing.T) {
 				actV, ok := attrs[expK]
 				if !ok {
 					t.Errorf("Attribute '%s' not found", expK)
-				} else if actV != expV {
-					t.Errorf("Incorrect value for attribute '%s':\n\texpect=%s actual=%s",
-						expK, expV, actV)
+				} else {
+					switch expV.(type) {
+					case int:
+						if actV.Type() != label.INT64 {
+							t.Errorf("Expected label.INT64, got %v for '%v':",
+								actV.Type(), expK)
+						}
+						if actV.AsInt64() != int64(expV.(int)) {
+							t.Errorf("Incorrect value for attribute '%s':\n\texpect=%v actual=%v",
+								expK, expV, actV)
+						}
+					case string:
+						if actV.Type() != label.STRING {
+							t.Errorf("Expected label.STRING, got %v for '%v':",
+								actV.Type(), expK)
+						}
+						if actV.AsString() != expV {
+							t.Errorf("Incorrect value for attribute '%s':\n\texpect=%s actual=%v",
+								expK, expV, actV)
+						}
+					default:
+						t.Errorf("Attribute type unexpected '%s':\n\texpect=%s actual=%v",
+							expK, expV, actV)
+					}
 				}
 			}
 		})
@@ -1279,7 +1302,7 @@ func TestExternalSegmentAttributes(t *testing.T) {
 	for _, test := range testcases {
 		t.Run(test.name, func(t *testing.T) {
 			attrs := make(map[string]interface{})
-			test.seg.addRequiredAttributes(func(keyValues ...kv.KeyValue) {
+			test.seg.addRequiredAttributes(func(keyValues ...label.KeyValue) {
 				for _, keyValue := range keyValues {
 					attrs[string(keyValue.Key)] = keyValue.Value.AsInterface()
 				}
@@ -1315,22 +1338,14 @@ func TestExternalSegmentSpanStatus(t *testing.T) {
 			name: "empty segment",
 			seg:  &ExternalSegment{},
 			code: codes.Code(0),
-			str:  "OK",
-		},
-		{
-			name: "grpc range code",
-			seg: &ExternalSegment{
-				statusCode: intptr(8),
-			},
-			code: codes.Code(8),
-			str:  "ResourceExhausted",
+			str:  "Unset",
 		},
 		{
 			name: "unknown range code",
 			seg: &ExternalSegment{
 				statusCode: intptr(42),
 			},
-			code: codes.Code(2),
+			code: codes.Code(1),
 			str:  "Invalid HTTP status code 42",
 		},
 		{
@@ -1338,7 +1353,7 @@ func TestExternalSegmentSpanStatus(t *testing.T) {
 			seg: &ExternalSegment{
 				statusCode: intptr(418),
 			},
-			code: codes.Code(3),
+			code: codes.Code(1),
 			str:  "HTTP status code: 418",
 		},
 		{
@@ -1356,7 +1371,7 @@ func TestExternalSegmentSpanStatus(t *testing.T) {
 					StatusCode: 418,
 				},
 			},
-			code: codes.Code(3),
+			code: codes.Code(1),
 			str:  "HTTP status code: 418",
 		},
 		{
@@ -1424,8 +1439,10 @@ func TestMessageProducerSegmentAttributes(t *testing.T) {
 
 	for _, test := range testcases {
 		t.Run(test.name, func(t *testing.T) {
-			attrs := make(map[string]interface{})
-			test.seg.addRequiredAttributes(func(k string, v interface{}) {
+			attrs := make(map[string]label.Value)
+			test.seg.addRequiredAttributes(func(keyValues ...label.KeyValue) {
+				k := string(keyValues[0].Key)
+				v := keyValues[0].Value
 				attrs[k] = v
 			})
 
@@ -1437,9 +1454,30 @@ func TestMessageProducerSegmentAttributes(t *testing.T) {
 				actV, ok := attrs[expK]
 				if !ok {
 					t.Errorf("Attribute '%s' not found", expK)
-				} else if actV != expV {
-					t.Errorf("Incorrect value for attribute '%s':\n\texpect=%s actual=%s",
-						expK, expV, actV)
+				} else {
+					switch expV.(type) {
+					case bool:
+						if actV.Type() != label.BOOL {
+							t.Errorf("Expected label.BOOL, got %v for '%v':",
+								actV.Type(), expK)
+						}
+						if actV.AsBool() != expV.(bool) {
+							t.Errorf("Incorrect value for attribute '%s':\n\texpect=%v actual=%v",
+								expK, expV, actV)
+						}
+					case string:
+						if actV.Type() != label.STRING {
+							t.Errorf("Expected label.STRING, got %v for '%v':",
+								actV.Type(), expK)
+						}
+						if actV.AsString() != expV {
+							t.Errorf("Incorrect value for attribute '%s':\n\texpect=%s actual=%v",
+								expK, expV, actV)
+						}
+					default:
+						t.Errorf("Attribute type unexpected '%s':\n\texpect=%s actual=%v",
+							expK, expV, actV)
+					}
 				}
 			}
 		})
