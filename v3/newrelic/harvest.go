@@ -92,35 +92,35 @@ func (h *harvest) Ready(now time.Time) *harvest {
 		ready.CustomEvents = h.CustomEvents
 		h.CustomEvents = newCustomEvents(h.CustomEvents.capacity())
 	}
-	if 0 != types&harvestTxnEvents {
-		h.Metrics.addCount(txnEventsSeen, h.TxnEvents.NumSeen(), forced)
-		h.Metrics.addCount(txnEventsSent, h.TxnEvents.NumSaved(), forced)
-		ready.TxnEvents = h.TxnEvents
-		h.TxnEvents = newTxnEvents(h.TxnEvents.capacity())
-	}
+	// if 0 != types&harvestTxnEvents {
+	// 	h.Metrics.addCount(txnEventsSeen, h.TxnEvents.NumSeen(), forced)
+	// 	h.Metrics.addCount(txnEventsSent, h.TxnEvents.NumSaved(), forced)
+	// 	ready.TxnEvents = h.TxnEvents
+	// 	h.TxnEvents = newTxnEvents(h.TxnEvents.capacity())
+	// }
 	if 0 != types&harvestErrorEvents {
 		h.Metrics.addCount(errorEventsSeen, h.ErrorEvents.NumSeen(), forced)
 		h.Metrics.addCount(errorEventsSent, h.ErrorEvents.NumSaved(), forced)
 		ready.ErrorEvents = h.ErrorEvents
 		h.ErrorEvents = newErrorEvents(h.ErrorEvents.capacity())
 	}
-	if 0 != types&harvestSpanEvents {
-		h.Metrics.addCount(spanEventsSeen, h.SpanEvents.NumSeen(), forced)
-		h.Metrics.addCount(spanEventsSent, h.SpanEvents.NumSaved(), forced)
-		ready.SpanEvents = h.SpanEvents
-		h.SpanEvents = newSpanEvents(h.SpanEvents.capacity())
-	}
+	// if 0 != types&harvestSpanEvents {
+	// 	h.Metrics.addCount(spanEventsSeen, h.SpanEvents.NumSeen(), forced)
+	// 	h.Metrics.addCount(spanEventsSent, h.SpanEvents.NumSaved(), forced)
+	// 	ready.SpanEvents = h.SpanEvents
+	// 	h.SpanEvents = newSpanEvents(h.SpanEvents.capacity())
+	// }
 	// NOTE! Metrics must happen after the event harvest conditionals to
 	// ensure that the metrics contain the event supportability metrics.
 	if 0 != types&harvestMetricsTraces {
 		ready.Metrics = h.Metrics
-		ready.ErrorTraces = h.ErrorTraces
-		ready.SlowSQLs = h.SlowSQLs
-		ready.TxnTraces = h.TxnTraces
+		// ready.ErrorTraces = h.ErrorTraces
+		// ready.SlowSQLs = h.SlowSQLs
+		// ready.TxnTraces = h.TxnTraces
 		h.Metrics = newMetricTable(maxMetrics, now)
-		h.ErrorTraces = newHarvestErrors(maxHarvestErrors)
-		h.SlowSQLs = newSlowQueries(maxHarvestSlowSQLs)
-		h.TxnTraces = newHarvestTraces()
+		// h.ErrorTraces = newHarvestErrors(maxHarvestErrors)
+		// h.SlowSQLs = newSlowQueries(maxHarvestSlowSQLs)
+		// h.TxnTraces = newHarvestTraces()
 	}
 	return ready
 }
@@ -172,15 +172,15 @@ type harvestConfig struct {
 // newHarvest returns a new Harvest.
 func newHarvest(now time.Time, configurer harvestConfig) *harvest {
 	return &harvest{
-		timer:        newHarvestTimer(now, configurer.ReportPeriods),
-		Metrics:      newMetricTable(maxMetrics, now),
-		ErrorTraces:  newHarvestErrors(maxHarvestErrors),
-		TxnTraces:    newHarvestTraces(),
-		SlowSQLs:     newSlowQueries(maxHarvestSlowSQLs),
-		SpanEvents:   newSpanEvents(configurer.MaxSpanEvents),
+		timer:       newHarvestTimer(now, configurer.ReportPeriods),
+		Metrics:     newMetricTable(maxMetrics, now),
+		ErrorTraces: newHarvestErrors(maxHarvestErrors),
+		// TxnTraces:    newHarvestTraces(),
+		// SlowSQLs:     newSlowQueries(maxHarvestSlowSQLs),
+		// SpanEvents:   newSpanEvents(configurer.MaxSpanEvents),
 		CustomEvents: newCustomEvents(configurer.MaxCustomEvents),
-		TxnEvents:    newTxnEvents(configurer.MaxTxnEvents),
-		ErrorEvents:  newErrorEvents(configurer.MaxErrorEvents),
+		// TxnEvents:    newTxnEvents(configurer.MaxTxnEvents),
+		ErrorEvents: newErrorEvents(configurer.MaxErrorEvents),
 	}
 }
 
@@ -214,14 +214,14 @@ func (h *harvest) CreateFinalMetrics(reply *internal.ConnectReply, hc harvestCon
 
 	// Configurable event harvest supportability metrics:
 	// https://source.datanerd.us/agents/agent-specs/blob/master/Connect-LEGACY.md#event-harvest-config
-	period := reply.ConfigurablePeriod()
-	h.Metrics.addDuration(supportReportPeriod, "", period, period, forced)
-	h.Metrics.addValue(supportTxnEventLimit, "", float64(hc.MaxTxnEvents), forced)
-	h.Metrics.addValue(supportCustomEventLimit, "", float64(hc.MaxCustomEvents), forced)
-	h.Metrics.addValue(supportErrorEventLimit, "", float64(hc.MaxErrorEvents), forced)
-	h.Metrics.addValue(supportSpanEventLimit, "", float64(hc.MaxSpanEvents), forced)
+	// period := reply.ConfigurablePeriod()
+	// h.Metrics.addDuration(supportReportPeriod, "", period, period, forced)
+	// h.Metrics.addValue(supportTxnEventLimit, "", float64(hc.MaxTxnEvents), forced)
+	// h.Metrics.addValue(supportCustomEventLimit, "", float64(hc.MaxCustomEvents), forced)
+	// h.Metrics.addValue(supportErrorEventLimit, "", float64(hc.MaxErrorEvents), forced)
+	// h.Metrics.addValue(supportSpanEventLimit, "", float64(hc.MaxSpanEvents), forced)
 
-	createTraceObserverMetrics(to, h.Metrics)
+	// createTraceObserverMetrics(to, h.Metrics)
 	createTrackUsageMetrics(h.Metrics)
 
 	h.Metrics = h.Metrics.ApplyRules(reply.MetricRules)

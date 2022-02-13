@@ -9,7 +9,7 @@ const (
 	// DefaultConfigurableEventHarvestMs is the period for custom, error,
 	// and transaction events if the connect response's
 	// "event_harvest_config.report_period_ms" is missing or invalid.
-	DefaultConfigurableEventHarvestMs = 60 * 1000
+	DefaultConfigurableEventHarvestMs = 360 * 1000
 	// MaxPayloadSizeInBytes specifies the maximum payload size in bytes that
 	// should be sent to any endpoint
 	MaxPayloadSizeInBytes = 1000 * 1000

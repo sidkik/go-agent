@@ -379,8 +379,8 @@ func defaultConfig() Config {
 	c.Enabled = true
 	c.Labels = make(map[string]string)
 	c.CustomInsightsEvents.Enabled = true
-	c.TransactionEvents.Enabled = true
-	c.TransactionEvents.Attributes.Enabled = true
+	c.TransactionEvents.Enabled = false
+	c.TransactionEvents.Attributes.Enabled = false
 	c.TransactionEvents.MaxSamplesStored = internal.MaxTxnEvents
 	c.HighSecurity = false
 	c.ErrorCollector.Enabled = true
@@ -392,42 +392,42 @@ func defaultConfig() Config {
 		http.StatusNotFound, // 404
 	}
 	c.ErrorCollector.Attributes.Enabled = true
-	c.Utilization.DetectAWS = true
-	c.Utilization.DetectAzure = true
-	c.Utilization.DetectPCF = true
+	c.Utilization.DetectAWS = false
+	c.Utilization.DetectAzure = false
+	c.Utilization.DetectPCF = false
 	c.Utilization.DetectGCP = true
-	c.Utilization.DetectDocker = true
+	c.Utilization.DetectDocker = false
 	c.Utilization.DetectKubernetes = true
 	c.Attributes.Enabled = true
 	c.RuntimeSampler.Enabled = true
 
-	c.TransactionTracer.Enabled = true
-	c.TransactionTracer.Threshold.IsApdexFailing = true
+	c.TransactionTracer.Enabled = false
+	c.TransactionTracer.Threshold.IsApdexFailing = false
 	c.TransactionTracer.Threshold.Duration = 500 * time.Millisecond
 	c.TransactionTracer.Segments.Threshold = 2 * time.Millisecond
 	c.TransactionTracer.Segments.StackTraceThreshold = 500 * time.Millisecond
-	c.TransactionTracer.Attributes.Enabled = true
-	c.TransactionTracer.Segments.Attributes.Enabled = true
+	c.TransactionTracer.Attributes.Enabled = false
+	c.TransactionTracer.Segments.Attributes.Enabled = false
 
-	c.BrowserMonitoring.Enabled = true
+	c.BrowserMonitoring.Enabled = false
 	// browser monitoring attributes are disabled by default
 	c.BrowserMonitoring.Attributes.Enabled = false
 
-	c.CrossApplicationTracer.Enabled = true
+	c.CrossApplicationTracer.Enabled = false
 	c.DistributedTracer.Enabled = false
-	c.SpanEvents.Enabled = true
-	c.SpanEvents.Attributes.Enabled = true
+	c.SpanEvents.Enabled = false
+	c.SpanEvents.Attributes.Enabled = false
 
-	c.DatastoreTracer.InstanceReporting.Enabled = true
-	c.DatastoreTracer.DatabaseNameReporting.Enabled = true
-	c.DatastoreTracer.QueryParameters.Enabled = true
-	c.DatastoreTracer.SlowQuery.Enabled = true
+	c.DatastoreTracer.InstanceReporting.Enabled = false
+	c.DatastoreTracer.DatabaseNameReporting.Enabled = false
+	c.DatastoreTracer.QueryParameters.Enabled = false
+	c.DatastoreTracer.SlowQuery.Enabled = false
 	c.DatastoreTracer.SlowQuery.Threshold = 10 * time.Millisecond
 
 	c.ServerlessMode.ApdexThreshold = 500 * time.Millisecond
 	c.ServerlessMode.Enabled = false
 
-	c.Heroku.UseDynoNames = true
+	c.Heroku.UseDynoNames = false
 	c.Heroku.DynoNamePrefixesToShorten = []string{"scheduler", "run"}
 
 	c.InfiniteTracing.TraceObserver.Port = 443

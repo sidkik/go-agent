@@ -159,8 +159,8 @@ func newServerlessConnectReply(config config) *internal.ConnectReply {
 	}
 
 	// https://source.datanerd.us/agents/agent-specs/blob/master/Lambda.md#adaptive-sampling
-	reply.SamplingTargetPeriodInSeconds = 60
-	reply.SamplingTarget = 10
+	reply.SamplingTargetPeriodInSeconds = 300
+	reply.SamplingTarget = 60
 
 	return reply
 }
@@ -224,7 +224,7 @@ func (run *appRun) ReportPeriods() map[harvestTypes]time.Duration {
 	}
 	return map[harvestTypes]time.Duration{
 		configurable: run.Reply.ConfigurablePeriod(),
-		fixed:        fixedHarvestPeriod,
+		fixed:        300 * time.Second,
 	}
 }
 
